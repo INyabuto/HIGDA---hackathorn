@@ -1,0 +1,126 @@
+library(dhis2Pull)
+library(tidyr)
+library(dplyr)
+library(plyr)
+library(httr)
+library(leaflet)
+library(ggplot2)
+library(rlist)
+
+# anc1 coverage resp
+anc1_data_frame <- function(){
+  anc1_resp <- dhis2_rapi2("https://play.dhis2.org/release1/api/25/analytics.json?dimension=ou:O6uvpzGd5pu;PMa2VCrupOd;jUb8gELQApl;kJq2mPyFEHo;lc3eMKXaEfw&dimension=pe:LAST_12_MONTHS&filter=dx:dwEq7wi6nXV&displayProperty=NAME&skipMeta=true")
+  anc1_parsed <- anc1_resp$content$rows
+  orgID<- sapply(anc1_parsed,"[[",1)
+  period <- sapply(anc1_parsed,"[[",2)
+  anc1_coverage<- sapply(anc1_parsed,"[[",3)
+  anc1_data_frame <-data.frame(orgID,period,anc1_coverage,stringsAsFactors =F)
+  return(anc1_data_frame)
+}
+
+
+# Extract orgUnits
+org_data_frame <- function(){
+  org_resp <- dhis2_rapi2("https://play.dhis2.org/release1/api/organisationUnits?paging=FALSE")
+  org_parsed <- org_resp$content$organisationUnits
+  orgID<- sapply(org_parsed,"[[",1)
+  orgName <- sapply(org_parsed,"[[",2)
+  org_data_frame <- data.frame(orgID,orgName,stringsAsFactors = F)
+  return(org_data_frame)
+}
+
+# Get org ID and name that matches the selected orgunits
+filtered_org_data_frame <- org_data_frame() %>% filter(orgID %in% c("O6uvpzGd5pu", "PMa2VCrupOd", "jUb8gELQApl", "kJq2mPyFEHo", "lc3eMKXaEfw"))
+
+# documented anc1_data-fame with org_Name
+documeneted_anc1_data_frame <- function(){
+  left_join(filtered_org_data_frame,anc1_data_frame(),by="orgID")
+}
+
+barChart <- function(){
+  bar <- ggplot(documeneted_anc1_data_frame(),aes(x=factor(period),y=as.numeric(anc1_coverage),fill=orgName))
+  bar + geom_bar(stat = "identity",position = "dodge")+
+    xlab("Period") +
+    ylab("ANC_IPT1") +
+    labs(fill="Organisaiton units") +
+    ggtitle("ANC_IPT1 coverage for the last 12 months")
+}
+
+pregnancy_comp_df <- function(){
+  resp <- dhis2_rapi2("https://play.dhis2.org/release1/api/25/analytics.json?dimension=ou:O6uvpzGd5pu;PMa2VCrupOd;jUb8gELQApl;kJq2mPyFEHo;lc3eMKXaEfw&dimension=pe:LAST_12_MONTHS&filter=dx:h8vtacmZL5j&displayProperty=NAME&skipMeta=true")
+  parsed_resp <- resp$content$rows
+  #Extract elements from the list
+  orgID <- sapply(parsed_resp,"[[",1)
+  period <- sapply(parsed_resp,"[[",2)
+  complications <- sapply(parsed_resp,"[[",3)
+  pregnancy_comp_df <- data.frame(orgID,period,complications,stringsAsFactors = F)
+  return(pregnancy_comp_df)
+}
+
+# Join pregnancy_comp_df with documented_anc1_data_frame for comparion
+pregnancy_comp_anc1_df <- function(){
+  left_join(documeneted_anc1_data_frame(),pregnancy_comp_df(),by=c("orgID","period"))
+}
+
+barChart_preg <- function(){
+  p <- ggplot(pregnancy_comp_anc1_df(),aes(x=as.factor(period),y=as.numeric(complications),fill=orgName))
+  p + geom_bar(stat = "identity",position = "dodge") + 
+    xlab("period")+
+    ylab("pregenancy-related complications")+
+    labs(fill="Ogranisaiton units")+
+    ggtitle("Pregnancy related complications for the last 12 months")
+}
+
+map <- function(){
+  resp <- dhis2_rapi2("https://play.dhis2.org/release1/api/organisationUnits.geojson?level=2") 
+  shape <- resp$content$features
+  filtered_shape <- list.filter(shape,id %in% c("O6uvpzGd5pu", "lc3eMKXaEfw", "jUb8gELQApl", "PMa2VCrupOd", "kJq2mPyFEHo"))
+  leaflet(options = leafletOptions(minZoom= 4, maxZoom = 18)) %>%
+    addTiles() %>%
+    addGeoJSON(filtered_shape)
+}
+
+map_ANC <- function(){
+  # Load jsonfile with coordinates into R
+  anc_shapefile <- geojsonio::geojson_read("www\\merged.json",what="sp")
+  
+  # basic map
+  m <-leaflet(anc_shapefile) %>% addTiles()
+  
+  # set the number of bins - arrange of values for color
+  bins <- c(90,100,110,120,130,200)
+  pal <- colorBin("YlOrRd",domain = anc_shapefile$average,bins = bins)
+  # customize the labels using HTML
+  labels <- sprintf(
+    "<strong>%s</strong><br/>Average ANC1: %g",
+    anc_shapefile$name,anc_shapefile$average
+  ) %>% lapply(htmltools::HTML) # pass the label to HTML so that leaflet understands
+  
+  m <-m %>% addPolygons( # add some color and set a few properites
+    fillColor = ~pal(average), 
+    weight=2,
+    opacity=1,
+    color="white",
+    dashArray="3",
+    fillOpacity = 0.7,
+    highlight=highlightOptions( # Add some interaction that will highligh the polygon as the mouses hoovers
+      weight=5,
+      color="#666",
+      dashArray="",
+      fillOpacity = 0.7,
+      bringToFront=TRUE
+    ),
+    label=labels, # add the label
+    labelOptions=labelOptions(
+      style=list("font-weight"="normal",padding="3px 8px"),
+      textsize="15px",
+      direction="auto"
+    )
+  )
+  # add legend
+  m %>% addLegend(pal=pal,values=~average,opacity=0.7,title="Average ANC1",position="bottomright")
+}
+
+
+
+
