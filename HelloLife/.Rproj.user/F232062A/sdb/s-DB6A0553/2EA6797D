@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "<body class=\"news\">\n  <header>\n    <div class=\"nav\">\n      <ul>\n        <li class=\"home\"><a href=\"#\">Home</a></li>\n        <li class=\"tutorials\"><a class=\"active\" href=\"#\">Tutorials</a></li>\n        <li class=\"about\"><a href=\"#\">About</a></li>\n        <li class=\"news\"><a href=\"#\">Newsletter</a></li>\n        <li class=\"contact\"><a href=\"#\">Contact</a></li>\n      </ul>\n    </div>\n  </header>\n</body>",
+    "created" : 1500989803402.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2924222688",
+    "id" : "2EA6797D",
+    "lastKnownWriteTime" : 1500991150,
+    "last_content_update" : 1500991150529,
+    "path" : "~/trial/www/index.html",
+    "project_path" : "www/index.html",
+    "properties" : {
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "html"
+}

@@ -1,10 +1,11 @@
 library(shinydashboard)
 
 dashboardPage(
-  dashboardHeader(title = "Home", dropdownMenu(type = "messages",
-                                              messageItem(from = "CHRIO-Bo",message = "pregnancy complications are high this month"),
-                                              messageItem(from = "CHRIO-Bonthe",message="The is low anc1 coverage this month"),
-                                              messageItem(from = "CHRIO-Kambia", message = "There is low turn up this month")),
+  dashboardHeader(title = "Home",
+                  dropdownMenu(type = "messages",
+                               messageItem(from = "CHRIO-Bo",message = "pregnancy complications are high this month"),
+                               messageItem(from = "CHRIO-Bonthe",message="The is low anc1 coverage this month"),
+                               messageItem(from = "CHRIO-Kambia", message = "There is low turn up this month")),
                   dropdownMenu(type = "notifications",
                                notificationItem(text = "5 new users today",icon("users")),
                                notificationItem(text = "Rapid increase of pregnancy compications this month",status = "warning",icon("exclamation-triangle")))),
@@ -15,6 +16,7 @@ dashboardPage(
       menuItem(text = "Organisation Unit",tabName = "organisationUnits",icon = icon("th-large", lib = "glyphicon")),
       menuItem(text = "Data elements",tabName = "dataelements",icon = icon("list-alt", lib = "glyphicon")),
       menuItem(text = "Charts",tabName = "charts",icon = icon("bar-chart", "fa")),
+      menuItem(text = "Prediction",tabName = "prediction",icon = icon("line-chart")),
       menuItem(text = "Maps",tabName = "maps",icon = icon("map"))
   
   )
@@ -44,13 +46,14 @@ dashboardPage(
                                      title = "Download Reports",status = "primary",solidHeader = TRUE,
                                      "Annul report",br(),"Last 12 months",
                                      selectInput(inputId="org_report",label="Select an organisation unit",choices = c("Bo", "Bonthe", "Kailahun", "Kambia", "Kenema"),selected = "Bo"),
+                                     radioButtons(inputId="full_download_type",label="file type",choices = c("png","pdf")),
                                      downloadButton(outputId="full_download",label = "Download Report"))),
               tabBox(
                   title = "Summary",id="selectedtab",width = 8,
                   tabPanel("Performance", value = 1, plotOutput("org_performance_line")),
                   tabPanel("ANC1 coverage",value = 2, plotOutput("org_pie_anc1")),
                   tabPanel("Pregnancy-related complications",value = 3, plotOutput("org_pie_preg")),
-                  tabPanel("Performance-predication",value = 4,plotOutput("performance_prediction")),
+                  tabPanel("Time series analysis and forecasting",value = 4,plotOutput("performance_prediction")),
                   tabPanel("Reports",value = 5,plotOutput("annual_report"))
                 )
               )
@@ -73,6 +76,19 @@ dashboardPage(
               )
             )
     ),
+    tabItem(tabName = "prediction",
+            fluidRow(
+              conditionalPanel(condition="input.predictiontab==1",
+                               box(width = 4,
+                                   title = "Organization unit",status = "primary",solidHeader = TRUE,
+                                   selectInput(inputId="prediction_dataElement",label = "Select data element",choices = c("Performance","ANC1 visit","Pregnancy-related complications")),
+                                   selectInput(inputId="orgUnit_performace",label = "Select an organization unit",choices = c("Bo", "Bonthe", "Kailahun", "Kambia", "Kenema"),selected = "Bo"),
+                                   #radioButtons(inputId="prediction_period",label = "Choose period",choices = c("3 months","6 months","12 months")),
+                                   sliderInput(inputId="prediction_period",label = "Set number of months ahead",min=1,max=12,value = 6,animate = TRUE),
+                                   downloadButton("prediction_download",label = "Download PDF"))),
+              tabBox(title = "Prediction",id="predictiontab",width = 8,
+                     tabPanel("Performance",value = 1,plotOutput("main_prediction")))
+            )),
     tabItem(tabName = "charts",
             fluidPage(
               headerPanel(title = ""),
@@ -112,14 +128,22 @@ dashboardPage(
             ),
     tabItem(tabName = "maps",
             fluidRow(
-              box(width = 4,
-                  title="Map",status = "primary",solidHeader = TRUE,
-                  helpText("Choose a data element to visulaize on a map"),
-                  selectInput("map_element",label = "Select data element",choices = c("ANC1 visit","Pregnancy-related complications"),selected = "ANC1 visit")
-                  ),
-              box(width = 8,
-                  leafletOutput("map"))
-              
+              conditionalPanel(condition="input.gistab==1",
+                              box(width = 4,
+                                  title="Map",status = "primary",solidHeader = TRUE,
+                                  helpText("Choose a data element to visulaize on a map"),
+                                  selectInput("map_element",label = "Select data element",choices = c("ANC1 visit","Pregnancy-related complications"),selected = "ANC1 visit")
+                                  )),
+              conditionalPanel(condition="input.gistab==2",
+                               box(width = 4,
+                                   title="Heatmap",status = "primary",solidHeader = TRUE,
+                                   helpText("Choose a data element"),
+                                   selectInput("heat_map",label = "Select data element",choices = c("ANC1 visit","Pregnancy-related complications"),selected = "ANC1 visit"))),
+              tabBox(
+                title = "GIS",id="gistab",width = 8,#icon = icon("map"),
+                tabPanel("Map",value = 1,leafletOutput("map")),
+                tabPanel("Heatmaps",value = 2,plotOutput("heatmap"))
+              )
             )
             )
           

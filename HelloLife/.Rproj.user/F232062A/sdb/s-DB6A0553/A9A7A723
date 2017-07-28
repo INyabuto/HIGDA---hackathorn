@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "## ui.R ##\nhtmlTemplate(\"index.html\",\n             button = actionButton(\"action\", \"Action\"),\n             slider = sliderInput(\"x\", \"X\", 1, 100, 50)\n)",
+    "created" : 1500986462266.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1697683419",
+    "id" : "A9A7A723",
+    "lastKnownWriteTime" : 1500989659,
+    "last_content_update" : 1500989659520,
+    "path" : "~/trial/server.r",
+    "project_path" : "server.r",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -56,6 +56,7 @@ shinyServer(function(input,output){
            "ANC1 visit"=barChart(),
            "Pregnancy-related complications"=barChart_preg())
   })
+ 
   
   # choose data set
   dataset <- reactive({
@@ -105,8 +106,8 @@ shinyServer(function(input,output){
            "bar graph"=ggplot(dataset(),aes(x=period, y=as.numeric(get(org())),fill=period))+geom_bar(stat = "identity")+ylab(input$dataelement)+ggtitle(paste("A bar graph of",input$dataelement,"for",input$orgUnit_select))+theme_light(),
            "histogram"=ggplot(dataset(),aes(x=as.numeric(get(org())),fill=..count..))+geom_histogram(breaks=bins)+xlab(input$orgUnit_select)+ggtitle(paste("Distribution of",input$dataelement,"for the last 12 months in",input$orgUnit_select))+theme_light(),
            "line graph"=ggplot(dataset(),aes(x=month,y=as.numeric(get(org()))))+geom_line(color="blue",size=2)+ylab(input$dataelement)+ggtitle(paste("A line graph",input$dataelement,"for the last 12 months for",input$orgUnit_select))+theme_light(),
-           "scatter plot"= ggplot(selected_dataset,aes(x=as.numeric(get(org())),y=as.numeric(compared_dataset[,input$orgUnit_select]),color=period))+geom_point(size=4)+xlab(input$dataelement)+ylab(input$dataelement2)+ggtitle(paste("A comparison of",input$dataelement,"and",input$dataelement2,"in",input$orgUnit_select))+theme_light(),
-           "density histogram"=ggplot(dataset(), aes(x=as.numeric(get(org()))))+geom_histogram(aes(y=..density..),bin=10)+stat_function(fun = dnorm, colour="red",args = list(mean=mean(as.numeric(get(org())),na.rm = T),sd=sd(as.numeric(get(org())),na.rm = T)))+theme_light()
+           "scatter plot"= ggplot(selected_dataset,aes(x=as.numeric(get(org())),y=as.numeric(compared_dataset[,input$orgUnit_select]),color=period))+geom_point(size=4)+xlab(input$dataelement)+ylab(input$dataelement2)+ggtitle(paste("A comparison of",input$dataelement,"and",input$dataelement2,"in",input$orgUnit_select))+theme_light()
+           #"density histogram"=ggplot(dataset(), aes(x=as.numeric(get(org()))))+geom_histogram(aes(y=..density..),bin=10)+stat_function(fun = dnorm, colour="red",args = list(mean=mean(as.numeric(get(org())),na.rm = T),sd=sd(as.numeric(get(org())),na.rm = T)))+theme_light()
            )
   }
 
@@ -226,34 +227,10 @@ shinyServer(function(input,output){
     
   })
   
+  
   # Get customized performance data - long table (based on the variance)
   performance <- reactive({
-    # Get different data 
-    ANC1_visit <- documeneted_anc1_data_frame() %>% 
-      select(-orgID) %>%
-      spread(orgName,anc1_coverage) %>% mutate(month = 1:length(period))
-    Pregnancy_Comp <- pregnancy_comp_anc1_df() %>%
-      select(-orgID,-anc1_coverage) %>% 
-      spread(orgName,complications) %>% mutate(month = 1:length(period))
-    # merge the data
-    ANC1_Pregnancy <- left_join(ANC1_visit,Pregnancy_Comp,by="month")
-    # Compute difference of ANC1 and pregancy comp
-    ANC1_Pregnancy_diff <- ANC1_Pregnancy %>% mutate(Bo.diff=as.numeric(Bo.x)-as.numeric(Bo.y)) %>%
-      mutate(Bonthe.diff=as.numeric(Bonthe.x)-as.numeric(Bonthe.y)) %>%
-      mutate(Kailahun.diff=as.numeric(Kailahun.x)-as.numeric(Kailahun.y)) %>%
-      mutate(Kambia.diff=as.numeric(Kambia.x)-as.numeric(Kambia.y)) %>%
-      mutate(Kenema.diff=as.numeric(Kenema.x)-as.numeric(Kenema.y))
-    # Get the variance
-    ANC1_Variance <- ANC1_Pregnancy_diff %>% mutate(Bo.var=(Bo.diff-mean(Bo.diff,na.rm=T))^2) %>%
-      mutate(Bonthe.var=(Bonthe.diff-mean(Bonthe.diff,na.rm=T))^2) %>%
-      mutate(Kailahun.var=(Kailahun.diff-mean(Kailahun.diff,na.rm=T))^2) %>%
-      mutate(Kambia.var=(Kambia.diff-mean(Kambia.diff,na.rm=T))^2) %>%
-      mutate(Kenema.var=(Kenema.diff-mean(Kenema.diff,na.rm=T))^2)
-    # Select org unit variance and rename to org-units and month to reconstract the dataframe and make it long
-    performance_long <- ANC1_Variance %>% select(month,Bo.var,Bonthe.var,Kailahun.var,Kambia.var,Kenema.var) %>%
-      mutate(Bo=Bo.var) %>% mutate(Bonthe=Bonthe.var) %>% mutate(Kailahun=Kailahun.var) %>% mutate(Kambia=Kambia.var)%>% mutate(Kenema=Kenema.var) %>%
-      select(month,Bo,Bonthe,Kailahun,Kambia,Kenema) %>%
-      gather(Organization_Unit,Variance,2:6) 
+   compute_performance() %>% gather(Organization_Unit,Variance,2:6) 
   })
   
   # Main dashboard - organisation unit performance
@@ -292,8 +269,39 @@ shinyServer(function(input,output){
     p4=ggplot(selected_dataset,aes(x=as.numeric(get(input$org_report)),y=as.numeric(compared_dataset[,input$org_report]),color=period))+geom_point(size=4)+xlab(input$dataelement)+ylab(input$dataelement2)+ggtitle(paste("A comparison of",input$dataelement,"and",input$dataelement2,"in",input$org_report))+theme_light() 
     
     #draw_plot(p1,x=0,y=0,width = 4,height = 6)
-    plot_grid(p4,p2,ncol=2,nrow=1)
+    plot_grid(p4,p2,ncol=1,nrow=2)
   }
+  
+  
+  # download handler for full reports
+  output$full_download <- downloadHandler(
+    filename = function(){
+      paste("AnnualReport",input$full_download_type,sep = ".")
+    },
+    content = function(file){
+      #open the device,
+      if (input$full_download_type=="png")
+        #width = 5*300, # 5*300px
+        #    height = 5*300, #5*300px
+        #    res = 300, #300px per inch
+        #    pointsize = 8
+        png(file,
+            width = 5*300,# 5*300px
+            height = 5*300, # 5*300px
+            res = 300, # 300px
+            pointsize = 8
+            )
+      
+      else
+        pdf(file)
+      
+      # create the plot
+      plot(selected_report())
+      # close the device
+     dev.off()
+    }
+    
+  )
   
   # main dashboard - Reports
   output$annual_report <- renderPlot({
@@ -303,8 +311,63 @@ shinyServer(function(input,output){
   })
   
    output$map <- renderLeaflet({
-    map_ANC()
+     switch(input$map_element,
+            "ANC1 visit"=map_ANC(),
+            "Pregnancy-related complications"=map_preg())
   })
+   output$heatmap <- renderPlot({
+     switch(input$heat_map,
+            "ANC1 visit"=heatmap_anc(),
+            "Pregnancy-related complications"=heatmap_preg())
+     
+   })
+   
+   # Get the selected organisation unit
+   orgUnit_performance <- reactive({
+     selected_org <- c(input$orgUnit_performace)
+   })
+  
+   
+   # organization unit performance prediction over time
+   org_performance <- function(){
+     performance <- compute_performance() %>% select(-month)
+     performance_ts <- ts(performance,start = c(2016,7),end = c(2017,6),frequency = 12)
+     fit <- arima(performance_ts[,orgUnit_performance()],c(0,0,1),list(order=c(0,0,1),period=12))
+     fcast <- forecast(fit,h=1*input$prediction_period)
+     #ggplot(fcast,aes(x=period,y=Variance))+geom_line()
+     plot(fcast, main=paste("Time series analysis and forecasting for",orgUnit_performance()),xlab="period (months)",ylab="Performance")
+   }
+   
+   # set breaks for prediction period
+   
+   
+   # ANC1 coverage prediction over time 
+   anc1_pred <- function(){
+     anc1 <- anc1_predict() 
+     anc1_ts <- ts(anc1,start = c(2016,7),end = c(2017,6),frequency = 12)
+     fit <- arima(anc1_ts[,orgUnit_performance()],c(0,0,1),list(order=c(0,0,1),period=12))
+     fcast <- forecast(fit,h=1*input$prediction_period)
+     plot(fcast,main=paste("Time series analysis and forecasting for",orgUnit_performance()),xlab="period (months)",ylab="ANC1 coverage")
+   }
+   
+   # Pregnancy related anc1 coverage over time
+   pregancy_prediction <- function(){
+     preg_predict <- preg_predict()
+     preg_predict_ts <- ts(preg_predict,start = c(2016,7),end = c(2017,6),frequency = 12)
+     fit <- arima(preg_predict_ts[,orgUnit_performance()],c(1,0,1),list(order=c(1,0,1),period=12))
+     fcast <- forecast(fit,h=1*input$prediction_period)
+     plot(fcast,main=paste("Time series analysis and forecasting for",orgUnit_performance()),xlab="period (months)",ylab="pregnancy-related complications")
+   }
+   output$main_prediction <- renderPlot({
+     switch(input$prediction_dataElement,
+            "Performance"=org_performance(),
+            "ANC1 visit"=anc1_pred(),
+            "Pregnancy-related complications"=pregancy_prediction())
+     
+   })
+   
+  
+   
 })
 
 
